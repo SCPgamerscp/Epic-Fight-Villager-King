@@ -2,11 +2,21 @@ package com.scpgamerscp.villagerking;
 
 import com.scpgamerscp.villagerking.entity.VillagerKingEntity;
 import com.scpgamerscp.villagerking.world.KingSummonData;
+import java.util.List;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.world.level.GameRules;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import yesman.epicfight.gameasset.Animations;
@@ -34,5 +44,17 @@ public final class VillagerKingEvents {
         if (event.getEntity() instanceof VillagerKingEntity king && king.level() instanceof ServerLevel level) {
             KingSummonData.get(level).onKingDeath(king.getUUID());
         }
+    }
+
+    @SubscribeEvent
+    public void onKingDrops(LivingDropsEvent event) {
+        if (!(event.getEntity() instanceof VillagerKingEntity king) ||
+                !(king.level() instanceof ServerLevel level) ||
+                !level.getGameRules().getBoolean(GameRules.RULE_DOMOBLOOT)) return;
+
+        ItemStack reward = new ItemStack(Items.POTION);
+        PotionUtils.setCustomEffects(reward, List.of(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 12000, 4)));
+        reward.setHoverName(Component.translatable("item.villagerking.kings_strength_potion"));
+        event.getDrops().add(new ItemEntity(level, king.getX(), king.getY(), king.getZ(), reward));
     }
 }

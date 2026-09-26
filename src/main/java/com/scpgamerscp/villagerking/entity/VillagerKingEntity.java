@@ -37,6 +37,7 @@ import yesman.epicfight.api.animation.types.StaticAnimation;
 import yesman.epicfight.api.animation.SynchedAnimationVariableKeys;
 import yesman.epicfight.gameasset.Animations;
 import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+import yesman.epicfight.world.entity.ai.attribute.EpicFightAttributes;
 
 public final class VillagerKingEntity extends PathfinderMob {
     private final ServerBossEvent bossBar = new ServerBossEvent(getDisplayName(), BossEvent.BossBarColor.YELLOW, BossEvent.BossBarOverlay.PROGRESS);
@@ -44,7 +45,6 @@ public final class VillagerKingEntity extends PathfinderMob {
     private KingWeapon weapon = KingWeapon.UCHIGATANA;
     private boolean dual;
     private int weaponTicks;
-    private int busyTicks;
     private int comboIndex;
     private int comboRounds;
     private int skillsRemaining;
@@ -68,7 +68,8 @@ public final class VillagerKingEntity extends PathfinderMob {
                 .add(Attributes.ATTACK_DAMAGE, 10.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.32D)
                 .add(Attributes.FOLLOW_RANGE, 48.0D)
-                .add(Attributes.KNOCKBACK_RESISTANCE, 0.8D);
+                .add(Attributes.KNOCKBACK_RESISTANCE, 0.8D)
+                .add(EpicFightAttributes.STUN_ARMOR.get(), 20.0D);
     }
 
     @Override
@@ -106,31 +107,28 @@ public final class VillagerKingEntity extends PathfinderMob {
             KingWeapon[] choices = KingWeapon.values();
             equipWeapon(choices[(weapon.ordinal() + 1 + getRandom().nextInt(choices.length - 1)) % choices.length]);
             weaponTicks = 0;
-            busyTicks = 0;
             slamStage = 0;
         }
 
+        VillagerKingPatch patch = EpicFightCapabilities.getEntityPatch(this, VillagerKingPatch.class);
+        if (patch == null) return;
         if (slamStage != 0) {
             tickSlam(target);
             return;
         }
-        if (distanceToSqr(target) >= 144.0D && onGround()) {
-            beginSlam(target);
-            return;
-        }
-        if (busyTicks > 0) {
-            busyTicks--;
-            return;
-        }
-        VillagerKingPatch patch = EpicFightCapabilities.getEntityPatch(this, VillagerKingPatch.class);
-        if (patch == null) return;
+        // The server animator accounts for links, speed modifiers, and spear followups.
+        // Start another attack only after the whole animation chain has finished.
+        if (!patch.isAnimationIdle()) return;
         if (eviscerateAwaitingResult) {
             eviscerateAwaitingResult = false;
             if (patch.getCurrentlyActuallyHitEntities().stream().anyMatch(net.minecraft.world.entity.LivingEntity::isAlive)) {
                 patch.play(Animations.EVISCERATE_SECOND);
-                busyTicks = Math.max(6, (int)Math.ceil(Animations.EVISCERATE_SECOND.get().getTotalTime() * 20.0F) + 4);
                 return;
             }
+        }
+        if (distanceToSqr(target) >= 144.0D && onGround()) {
+            beginSlam(target);
+            return;
         }
         if (!onGround() || distanceToSqr(target) > 25.0D) return;
 
@@ -160,11 +158,6 @@ public final class VillagerKingEntity extends PathfinderMob {
         }
         eviscerateAwaitingResult = weapon == KingWeapon.DAGGER && !dual && skillAttack;
         patch.play(animation);
-        float animationTime = animation.get().getTotalTime();
-        if (weapon == KingWeapon.SPEAR && skillAttack) {
-            animationTime += Animations.GRASPING_SPIRAL_SECOND.get().getTotalTime();
-        }
-        busyTicks = Math.max(6, (int)Math.ceil(animationTime * 20.0F) + 4);
     }
 
     private void beginSlam(net.minecraft.world.entity.LivingEntity target) {
@@ -203,7 +196,6 @@ public final class VillagerKingEntity extends PathfinderMob {
         } else if (slamStage == 2 && (onGround() && slamTicks > 3 || slamTicks > 60)) {
             if (level() instanceof ServerLevel serverLevel) slamImpact(serverLevel);
             slamStage = 0;
-            busyTicks = 4;
         }
     }
 
