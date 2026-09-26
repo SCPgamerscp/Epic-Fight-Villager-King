@@ -40,6 +40,11 @@ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
 import yesman.epicfight.world.entity.ai.attribute.EpicFightAttributes;
 
 public final class VillagerKingEntity extends PathfinderMob {
+    private static final double SLAM_MAX_CHASE_SPEED = 1.45D;
+    private static final double SLAM_BRAKE_DISTANCE_SQR = 2.25D;
+    private static final double SLAM_DIVE_TRIGGER_DISTANCE_SQR = 9.0D;
+    private static final double SLAM_IMPACT_RADIUS = 6.0D;
+    private static final double SLAM_IMPACT_VERTICAL_RADIUS = 3.0D;
     private final ServerBossEvent bossBar = new ServerBossEvent(getDisplayName(), BossEvent.BossBarColor.YELLOW, BossEvent.BossBarOverlay.PROGRESS);
     @Nullable private UUID ownerId;
     private KingWeapon weapon = KingWeapon.UCHIGATANA;
@@ -162,9 +167,16 @@ public final class VillagerKingEntity extends PathfinderMob {
 
     private void beginSlam(net.minecraft.world.entity.LivingEntity target) {
         eviscerateAwaitingResult = false;
-        Vec3 direction = target.position().subtract(position()).multiply(1.0D, 0.0D, 1.0D).normalize();
         getNavigation().stop();
-        setDeltaMovement(direction.x * 1.4D, 1.05D, direction.z * 1.4D);
+
+        Vec3 horizontal = target.position().subtract(position()).multiply(1.0D, 0.0D, 1.0D);
+        double distance = Math.sqrt(horizontal.lengthSqr());
+        Vec3 direction = distance > 1.0E-4D ? horizontal.scale(1.0D / distance) : Vec3.ZERO;
+        double speed = Math.min(SLAM_MAX_CHASE_SPEED, Math.max(0.6D, distance * 0.08D));
+
+        // Give the king enough airtime to get above distant targets. Horizontal
+        // speed is corrected every tick below, so this no longer overshoots the target.
+        setDeltaMovement(direction.x * speed, 1.35D, direction.z * speed);
         hasImpulse = true;
         slamStage = 1;
         slamTicks = 0;
@@ -173,38 +185,91 @@ public final class VillagerKingEntity extends PathfinderMob {
     private void tickSlam(net.minecraft.world.entity.LivingEntity target) {
         getNavigation().stop();
         slamTicks++;
+
         if (slamStage == 1) {
-            Vec3 towardTarget = target.position().subtract(position()).multiply(1.0D, 0.0D, 1.0D);
-            if (towardTarget.lengthSqr() > 4.0D) {
-                Vec3 direction = towardTarget.normalize();
-                setDeltaMovement(direction.x * 1.4D, getDeltaMovement().y, direction.z * 1.4D);
-                hasImpulse = true;
+            Vec3 horizontal = target.position().subtract(position()).multiply(1.0D, 0.0D, 1.0D);
+            double horizontalDistanceSqr = horizontal.lengthSqr();
+            Vec3 currentMotion = getDeltaMovement();
+
+            if (horizontalDistanceSqr > SLAM_BRAKE_DISTANCE_SQR) {
+                double distance = Math.sqrt(horizontalDistanceSqr);
+                Vec3 direction = horizontal.scale(1.0D / distance);
+                double speed = Math.min(SLAM_MAX_CHASE_SPEED, Math.max(0.25D, distance * 0.10D));
+                setDeltaMovement(direction.x * speed, currentMotion.y, direction.z * speed);
+            } else {
+                // Brake above the target instead of carrying the old 1.4 block/tick
+                // velocity through them and starting the slam far behind.
+                setDeltaMovement(0.0D, currentMotion.y, 0.0D);
             }
+            hasImpulse = true;
+
+            boolean descending = slamTicks >= 8 && getDeltaMovement().y <= 0.0D;
+            boolean linedUp = horizontalDistanceSqr <= SLAM_DIVE_TRIGGER_DISTANCE_SQR;
+
+            if ((descending && linedUp) || (descending && slamTicks >= 28) || (onGround() && slamTicks > 3)) {
+                startMeteorDive(target);
+            }
+            return;
         }
-        if (slamStage == 1 && (slamTicks >= 8 && getDeltaMovement().y <= 0.0D || onGround() && slamTicks > 3)) {
-            VillagerKingPatch patch = EpicFightCapabilities.getEntityPatch(this, VillagerKingPatch.class);
-            if (patch != null) {
-                getLookControl().setLookAt(target, 30.0F, 90.0F);
-                Vec3 towardTarget = target.position().subtract(position());
-                setYRot((float)(Math.atan2(towardTarget.z, towardTarget.x) * 180.0D / Math.PI) - 90.0F);
-                setYHeadRot(getYRot());
-                setXRot(60.0F);
-                patch.play(Animations.METEOR_SLAM);
-            }
-            slamStage = 2;
-            slamTicks = 0;
-        } else if (slamStage == 2 && (onGround() && slamTicks > 3 || slamTicks > 60)) {
+
+        if (slamStage == 2 && ((onGround() && slamTicks > 0) || slamTicks > 50)) {
             if (level() instanceof ServerLevel serverLevel) slamImpact(serverLevel);
             slamStage = 0;
+            slamTicks = 0;
         }
     }
 
+    private void startMeteorDive(net.minecraft.world.entity.LivingEntity target) {
+        VillagerKingPatch patch = EpicFightCapabilities.getEntityPatch(this, VillagerKingPatch.class);
+        if (patch == null) {
+            slamStage = 0;
+            return;
+        }
+
+        // METEOR_SLAM traces the entity's view direction to choose its landing
+        // coordinate. Aim the king directly at the target instead of using a fixed
+        // 60-degree pitch, which could send the animation into the ground elsewhere.
+        Vec3 from = getEyePosition();
+        Vec3 aimPoint = target.position().add(0.0D, target.getBbHeight() * 0.35D, 0.0D);
+        Vec3 towardTarget = aimPoint.subtract(from);
+        double horizontalDistance = Math.sqrt(towardTarget.x * towardTarget.x + towardTarget.z * towardTarget.z);
+
+        float yaw = (float)(Math.atan2(towardTarget.z, towardTarget.x) * 180.0D / Math.PI) - 90.0F;
+        float pitch = (float)(-Math.atan2(towardTarget.y, Math.max(horizontalDistance, 1.0E-4D)) * 180.0D / Math.PI);
+
+        setYRot(yaw);
+        setYHeadRot(yaw);
+        setYBodyRot(yaw);
+        setXRot(Math.max(-89.0F, Math.min(89.0F, pitch)));
+
+        patch.play(Animations.METEOR_SLAM);
+        slamStage = 2;
+        slamTicks = 0;
+    }
+
     private void slamImpact(ServerLevel level) {
-        level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 0.2D, getZ(), 12, 2.0D, 0.1D, 2.0D, 0.1D);
-        level.playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE, getSoundSource(), 1.0F, 0.8F);
-        AABB area = getBoundingBox().inflate(4.0D, 1.0D, 4.0D);
-        for (Player player : level.getEntitiesOfClass(Player.class, area)) {
-            if (hasLineOfSight(player)) player.hurt(damageSources().mobAttack(this), (float)getAttributeValue(Attributes.ATTACK_DAMAGE));
+        level.sendParticles(ParticleTypes.EXPLOSION, getX(), getY() + 0.2D, getZ(), 18, 2.5D, 0.25D, 2.5D, 0.12D);
+        level.playSound(null, blockPosition(), SoundEvents.GENERIC_EXPLODE, getSoundSource(), 1.25F, 0.75F);
+
+        VillagerKingPatch patch = EpicFightCapabilities.getEntityPatch(this, VillagerKingPatch.class);
+        AABB area = getBoundingBox().inflate(SLAM_IMPACT_RADIUS, SLAM_IMPACT_VERTICAL_RADIUS, SLAM_IMPACT_RADIUS);
+        float fallbackDamage = (float)getAttributeValue(Attributes.ATTACK_DAMAGE) * 2.0F;
+
+        for (Player player : level.getEntitiesOfClass(Player.class, area, Player::isAlive)) {
+            double dx = player.getX() - getX();
+            double dz = player.getZ() - getZ();
+            if (dx * dx + dz * dz > SLAM_IMPACT_RADIUS * SLAM_IMPACT_RADIUS) continue;
+
+            // The real METEOR_SLAM AttackAnimation has its own collider. Only use
+            // the radial impact as a fallback when that collider did not connect.
+            if (patch != null && patch.getCurrentlyActuallyHitEntities().contains(player)) continue;
+
+            // Epic Fight attacks temporarily ignore vanilla hurt invulnerability in
+            // the same way. Restore the previous value after this one impact attempt.
+            int previousInvulnerability = player.invulnerableTime;
+            player.invulnerableTime = 0;
+            player.hurt(damageSources().mobAttack(this), fallbackDamage);
+            player.invulnerableTime = previousInvulnerability;
         }
     }
 
