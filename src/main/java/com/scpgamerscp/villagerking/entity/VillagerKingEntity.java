@@ -53,6 +53,7 @@ public final class VillagerKingEntity extends PathfinderMob {
     private int slamTicks;
     private int landingProtectionTicks;
     private boolean combatStarted;
+    private boolean eviscerateAwaitingResult;
 
     public VillagerKingEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -92,6 +93,7 @@ public final class VillagerKingEntity extends PathfinderMob {
         var target = getTarget();
         if (target == null || !target.isAlive()) {
             if (onGround()) slamStage = 0;
+            eviscerateAwaitingResult = false;
             return;
         }
         if (!combatStarted) {
@@ -120,10 +122,18 @@ public final class VillagerKingEntity extends PathfinderMob {
             busyTicks--;
             return;
         }
-        if (!onGround() || distanceToSqr(target) > 25.0D) return;
-
         VillagerKingPatch patch = EpicFightCapabilities.getEntityPatch(this, VillagerKingPatch.class);
         if (patch == null) return;
+        if (eviscerateAwaitingResult) {
+            eviscerateAwaitingResult = false;
+            if (patch.getCurrentlyActuallyHitEntities().stream().anyMatch(net.minecraft.world.entity.LivingEntity::isAlive)) {
+                patch.play(Animations.EVISCERATE_SECOND);
+                busyTicks = Math.max(6, (int)Math.ceil(Animations.EVISCERATE_SECOND.get().getTotalTime() * 20.0F) + 4);
+                return;
+            }
+        }
+        if (!onGround() || distanceToSqr(target) > 25.0D) return;
+
         getNavigation().stop();
         getLookControl().setLookAt(target, 30.0F, 30.0F);
         AssetAccessor<? extends StaticAnimation> animation;
@@ -148,11 +158,17 @@ public final class VillagerKingEntity extends PathfinderMob {
         if (weapon == KingWeapon.DAGGER && dual && skillAttack) {
             patch.getAnimator().getVariables().put(SynchedAnimationVariableKeys.TARGET_ENTITY.get(), animation, target.getId());
         }
+        eviscerateAwaitingResult = weapon == KingWeapon.DAGGER && !dual && skillAttack;
         patch.play(animation);
-        busyTicks = Math.max(6, (int)Math.ceil(animation.get().getTotalTime() * 20.0F) + 4);
+        float animationTime = animation.get().getTotalTime();
+        if (weapon == KingWeapon.SPEAR && skillAttack) {
+            animationTime += Animations.GRASPING_SPIRAL_SECOND.get().getTotalTime();
+        }
+        busyTicks = Math.max(6, (int)Math.ceil(animationTime * 20.0F) + 4);
     }
 
     private void beginSlam(net.minecraft.world.entity.LivingEntity target) {
+        eviscerateAwaitingResult = false;
         Vec3 direction = target.position().subtract(position()).multiply(1.0D, 0.0D, 1.0D).normalize();
         getNavigation().stop();
         setDeltaMovement(direction.x * 1.4D, 1.05D, direction.z * 1.4D);
@@ -211,6 +227,7 @@ public final class VillagerKingEntity extends PathfinderMob {
         comboRounds = 0;
         skillIndex = 0;
         skillsRemaining = 6;
+        eviscerateAwaitingResult = false;
     }
 
     @Nullable

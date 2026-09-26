@@ -15,6 +15,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 public final class KingSummonData extends SavedData {
     private static final String FILE_NAME = "villagerking_summons";
     private final Map<UUID, Progress> progressByPlayer = new HashMap<>();
+    private UUID activeKing;
 
     public static KingSummonData get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage()
@@ -23,13 +24,13 @@ public final class KingSummonData extends SavedData {
 
     public static KingSummonData load(CompoundTag tag) {
         KingSummonData data = new KingSummonData();
+        if (tag.hasUUID("ActiveKing")) data.activeKing = tag.getUUID("ActiveKing");
         ListTag entries = tag.getList("Players", 10);
         for (int i = 0; i < entries.size(); i++) {
             CompoundTag entry = entries.getCompound(i);
             if (entry.hasUUID("Player")) {
                 Progress p = new Progress();
                 p.hits = Math.max(0, Math.min(19, entry.getInt("Hits")));
-                if (entry.hasUUID("King")) p.king = entry.getUUID("King");
                 data.progressByPlayer.put(entry.getUUID("Player"), p);
             }
         }
@@ -38,12 +39,12 @@ public final class KingSummonData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag) {
+        if (activeKing != null) tag.putUUID("ActiveKing", activeKing);
         ListTag entries = new ListTag();
         progressByPlayer.forEach((player, progress) -> {
             CompoundTag entry = new CompoundTag();
             entry.putUUID("Player", player);
             entry.putInt("Hits", progress.hits);
-            if (progress.king != null) entry.putUUID("King", progress.king);
             entries.add(entry);
         });
         tag.put("Players", entries);
@@ -51,8 +52,8 @@ public final class KingSummonData extends SavedData {
     }
 
     public void recordHit(ServerPlayer player, ServerLevel level) {
+        if (activeKing != null) return;
         Progress progress = progressByPlayer.computeIfAbsent(player.getUUID(), unused -> new Progress());
-        if (progress.king != null) return;
         if (progress.hits < 19) {
             progress.hits++;
             setDirty();
@@ -67,7 +68,7 @@ public final class KingSummonData extends SavedData {
         king.setPersistenceRequired();
         if (level.addFreshEntity(king)) {
             progress.hits = 0;
-            progress.king = king.getUUID();
+            activeKing = king.getUUID();
             setDirty();
         }
     }
@@ -87,18 +88,15 @@ public final class KingSummonData extends SavedData {
         return false;
     }
 
-    public void onKingDeath(UUID owner, UUID kingId) {
-        if (owner == null) return;
-        Progress progress = progressByPlayer.get(owner);
-        if (progress != null && kingId.equals(progress.king)) {
-            progress.king = null;
-            progress.hits = 0;
+    public void onKingDeath(UUID kingId) {
+        if (kingId.equals(activeKing)) {
+            activeKing = null;
+            progressByPlayer.values().forEach(progress -> progress.hits = 0);
             setDirty();
         }
     }
 
     private static final class Progress {
         private int hits;
-        private UUID king;
     }
 }

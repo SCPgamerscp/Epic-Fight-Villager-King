@@ -17,10 +17,10 @@ jobs:
           cache: gradle
       - name: Build
         run: bash gradlew --no-daemon build
-      - name: Start dedicated server
-        run: bash scripts/smoke-server.sh
       - uses: actions/upload-artifact@v4
         with:
           name: villagerking-forge-1.20.1
           path: build/libs/*.jar
           if-no-files-found: error
+      - name: Start dedicated server
+        run: bash scripts/smoke-server.sh

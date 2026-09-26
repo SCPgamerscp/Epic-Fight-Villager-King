@@ -48,11 +48,11 @@ public enum KingWeapon {
         return switch (this) {
             case UCHIGATANA -> List.of(Animations.BATTOJUTSU);
             case GREATSWORD -> List.of(Animations.STEEL_WHIRLWIND);
-            case SPEAR -> List.of(Animations.GRASPING_SPIRAL_FIRST, Animations.GRASPING_SPIRAL_SECOND);
+            case SPEAR -> List.of(Animations.GRASPING_SPIRAL_FIRST);
             case TACHI -> List.of(Animations.RUSHING_TEMPO1, Animations.RUSHING_TEMPO2, Animations.RUSHING_TEMPO3);
             case LONGSWORD -> List.of(Animations.SHARP_STAB);
             case DAGGER -> dual ? List.of(Animations.BLADE_RUSH_COMBO1, Animations.BLADE_RUSH_COMBO2, Animations.BLADE_RUSH_COMBO3)
-                    : List.of(Animations.EVISCERATE_FIRST, Animations.EVISCERATE_SECOND);
+                    : List.of(Animations.EVISCERATE_FIRST);
             case GLOVE -> List.of(Animations.RELENTLESS_COMBO);
             case SWORD -> dual ? List.of(Animations.DANCING_EDGE) : List.of(Animations.SWEEPING_EDGE);
             case AXE -> List.of(Animations.THE_GUILLOTINE);

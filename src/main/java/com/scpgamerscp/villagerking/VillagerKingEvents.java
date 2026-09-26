@@ -23,7 +23,7 @@ public final class VillagerKingEvents {
     @SubscribeEvent
     public void onKingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof VillagerKingEntity king && king.level() instanceof ServerLevel level) {
-            KingSummonData.get(level).onKingDeath(king.getOwnerId(), king.getUUID());
+            KingSummonData.get(level).onKingDeath(king.getUUID());
         }
     }
 }
