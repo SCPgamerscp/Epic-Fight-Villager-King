@@ -66,7 +66,7 @@ public final class VillagerKingEntity extends PathfinderMob {
                 .add(Attributes.MAX_HEALTH, 500.0D)
                 .add(Attributes.ARMOR, 40.0D)
                 .add(Attributes.ATTACK_DAMAGE, 10.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.32D)
+                .add(Attributes.MOVEMENT_SPEED, 0.48D)
                 .add(Attributes.FOLLOW_RANGE, 48.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.8D)
                 .add(EpicFightAttributes.STUN_ARMOR.get(), 20.0D);
