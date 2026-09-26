@@ -21,7 +21,7 @@ import yesman.epicfight.world.capabilities.entitypatch.HumanoidMobPatch;
 import yesman.epicfight.world.entity.ai.goal.AnimatedAttackGoal;
 
 public final class VillagerKingPatch extends HumanoidMobPatch<VillagerKingEntity> {
-    private static final float ATTACK_PLAYBACK_SPEED = 1.5F;
+    private static final float ATTACK_PLAYBACK_SPEED = 2.25F;
     private static boolean attackSpeedConfigured;
 
     public VillagerKingPatch() {
@@ -81,7 +81,7 @@ public final class VillagerKingPatch extends HumanoidMobPatch<VillagerKingEntity
      * The king intentionally reuses Epic Fight's player animations, so install a
      * conditional playback modifier on those shared animation assets. The modifier
      * preserves any speed rule Epic Fight already attached to an animation and only
-     * adds the 1.5x multiplier when the current entity patch is VillagerKingPatch.
+     * adds the 2.25x multiplier when the current entity patch is VillagerKingPatch.
      */
     private static synchronized void configureAttackAnimationSpeed() {
         if (attackSpeedConfigured) return;
