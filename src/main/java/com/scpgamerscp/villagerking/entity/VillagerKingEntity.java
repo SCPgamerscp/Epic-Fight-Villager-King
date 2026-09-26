@@ -45,6 +45,7 @@ public final class VillagerKingEntity extends PathfinderMob {
     private static final double SLAM_DIVE_TRIGGER_DISTANCE_SQR = 9.0D;
     private static final double SLAM_IMPACT_RADIUS = 6.0D;
     private static final double SLAM_IMPACT_VERTICAL_RADIUS = 3.0D;
+    private static final float SLAM_DAMAGE_MULTIPLIER = 4.0F;
     private final ServerBossEvent bossBar = new ServerBossEvent(getDisplayName(), BossEvent.BossBarColor.YELLOW, BossEvent.BossBarOverlay.PROGRESS);
     @Nullable private UUID ownerId;
     private KingWeapon weapon = KingWeapon.UCHIGATANA;
@@ -253,7 +254,7 @@ public final class VillagerKingEntity extends PathfinderMob {
 
         VillagerKingPatch patch = EpicFightCapabilities.getEntityPatch(this, VillagerKingPatch.class);
         AABB area = getBoundingBox().inflate(SLAM_IMPACT_RADIUS, SLAM_IMPACT_VERTICAL_RADIUS, SLAM_IMPACT_RADIUS);
-        float fallbackDamage = (float)getAttributeValue(Attributes.ATTACK_DAMAGE) * 2.0F;
+        float fallbackDamage = (float)getAttributeValue(Attributes.ATTACK_DAMAGE) * SLAM_DAMAGE_MULTIPLIER;
 
         for (Player player : level.getEntitiesOfClass(Player.class, area, Player::isAlive)) {
             double dx = player.getX() - getX();
