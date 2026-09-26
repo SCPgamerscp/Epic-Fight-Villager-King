@@ -1,28 +1,36 @@
 # Epic Fight Villager King
 
-Minecraft 1.20.1 Forge add-on for [Epic Fight](https://modrinth.com/mod/epic-fight). It adds a boss named Villager King wearing [this NameMC skin](https://namemc.com/skin/e480685ee529111a).
+Minecraft 1.20.1 Forge と Epic Fight 向けの追加 MOD です。[指定された NameMC スキン](https://ja.namemc.com/skin/e480685ee529111a)を使った独立ボス「村人の王」を追加します。
 
-## Requirements
+## 必要な環境
 
 - Minecraft 1.20.1
-- Forge 47.4.4 or newer in the 1.20.1 line
-- Epic Fight 20.14.17 (Forge 1.20.1)
-- Java 17 for building
+- Forge 47.4.4 以降の 1.20.1 対応版
+- Epic Fight 20.14.17（Forge 1.20.1 版）
+- ビルドには Java 17
 
-## Summoning
+## 召喚
 
-Each player's direct hits on any vanilla villager are counted across the world. On the twentieth successful hit, the Villager King appears near that player. A player cannot summon another one while their previous king lives. After it dies, that player's count starts again at zero. The counts and active boss links are saved with the world. For testing, `/summon villagerking:villager_king` also works.
+プレイヤーごとに、通常の村人への直接攻撃を記録します。累計 20 回目の攻撃で、そのプレイヤーの近くに村人の王が出現します。ボスの生存中、そのプレイヤーは二体目を召喚できません。ボスを倒すと攻撃回数は 0 に戻ります。攻撃回数と召喚したボスの情報はワールドに保存されます。
 
-## Combat
+動作確認用に `/summon villagerking:villager_king` でも出現させられます。
 
-The king has 500 health, 40 armor, a base attack damage of 10 plus the equipped weapon, and continuous Regeneration III. It changes weapon every 30 seconds of active combat. Its ten weapons are uchigatana, netherite greatsword, netherite spear, netherite tachi, netherite longsword, netherite dagger, paired gloves, netherite sword, netherite axe, and trident. Swords and daggers have a 50% chance of dual wielding whenever selected.
+## 戦闘
 
-For each weapon, the king uses the same Epic Fight player attack animations: three complete normal combos, then six weapon skill attacks, repeating until the next weapon change. Trident uses Wrathful Lighting. When a target is at least 12 blocks away, the king leaps toward it and uses Meteor Slam with any weapon. Meteor Slam has no time cooldown, though one jump must land before another can begin. The 30-second weapon switch interrupts any active attack.
+体力 500、基本攻撃力 10、防具値の設定値 40、継続する再生 III を持ちます。通常攻撃の攻撃力には装備中の武器の攻撃力が加わります。Minecraft 1.20.1 の防具値属性には上限があるため、実際の計算に使われる防具値と軽減率はゲーム側の上限に従います。
 
-## Build
+戦闘中は 30 秒ごとに、打ち刀、ネザライトグレートソード、ネザライトの槍・太刀・ロングソード・ダガー、グローブ、ネザライトの剣・斧、トライデントの間で武器を切り替えます。剣とダガーは選ばれるたびに 50% の確率で二刀流になり、グローブは常に両手に装備します。
 
-Run `./gradlew build` on Linux/macOS or `gradlew.bat build` on Windows. The Forge mod JAR is written to `build/libs/`. Install it alongside the requirements above; the skin is bundled in the JAR. NeoForge and other Minecraft versions will require separate ports.
+通常攻撃は各武器の Epic Fight プレイヤー用アニメーションを 3 コンボ分使用し、続いて対応する武器技のアニメーションを 6 回使用します。この順番を次の武器切り替えまで繰り返します。トライデントの技は Wrathful Lighting です。これらのアニメーションをボスの Epic Fight エンティティ連携から再生するため、プレイヤー専用のスキル操作をボスへ直接適用しません。
 
-## Asset credit
+ターゲットが 12 ブロック以上離れると、どの武器でも跳躍して同じ Meteor Slam のアニメーションで接近します。時間による再使用制限はなく、着地までは重複発動しません。30 秒の武器切り替えはその最中も優先されます。
 
-The included skin is the exact PNG linked from the [NameMC skin page](https://namemc.com/skin/e480685ee529111a). Epic Fight animations are referenced from the installed Epic Fight mod; this project does not redistribute its animation assets.
+## ビルド
+
+Linux/macOS では `./gradlew build`、Windows では `gradlew.bat build` を実行します。配布用 JAR は `build/libs/` に出力されます。JAR にはスキンを同梱しています。NeoForge や別の Minecraft バージョンには個別の移植が必要です。
+
+GitHub Actions は Gradle ビルド、専用サーバー起動、JAR の成果物アップロードを実行します。
+
+## アセット
+
+スキンは[指定された NameMC のページ](https://ja.namemc.com/skin/e480685ee529111a)の PNG を同梱しています。Epic Fight のアニメーションはインストール済みの Epic Fight から参照し、この MOD に再配布しません。
