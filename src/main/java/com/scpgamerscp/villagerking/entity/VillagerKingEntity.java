@@ -219,7 +219,6 @@ public final class VillagerKingEntity extends PathfinderMob {
         comboRounds = 0;
         skillIndex = 0;
         skillsRemaining = 6;
-        eviscerateAwaitingResult = false;
     }
 
     @Nullable
