@@ -212,7 +212,7 @@ public final class VillagerKingEntity extends PathfinderMob {
             return;
         }
 
-        if (slamStage == 2 && ((onGround() && slamTicks > 0) || slamTicks > 50)) {
+        if (slamStage == 2 && ((onGround() && slamTicks >= 4) || slamTicks > 50)) {
             if (level() instanceof ServerLevel serverLevel) slamImpact(serverLevel);
             slamStage = 0;
             slamTicks = 0;
