@@ -2,6 +2,7 @@
 set -euo pipefail
 
 mkdir -p run
+rm -f run/logs/latest.log
 printf 'eula=true\n' > run/eula.txt
 
 timeout 300s bash gradlew --no-daemon runServer > server-start.log 2>&1 &
