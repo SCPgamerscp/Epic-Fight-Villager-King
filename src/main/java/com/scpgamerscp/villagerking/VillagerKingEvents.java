@@ -55,6 +55,8 @@ public final class VillagerKingEvents {
         ItemStack reward = new ItemStack(Items.POTION);
         PotionUtils.setCustomEffects(reward, List.of(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 12000, 4)));
         reward.setHoverName(Component.translatable("item.villagerking.kings_strength_potion"));
-        event.getDrops().add(new ItemEntity(level, king.getX(), king.getY(), king.getZ(), reward));
+        for (int i = 0; i < 10; i++) {
+            event.getDrops().add(new ItemEntity(level, king.getX(), king.getY(), king.getZ(), reward.copy()));
+        }
     }
 }
