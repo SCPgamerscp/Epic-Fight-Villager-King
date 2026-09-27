@@ -40,6 +40,7 @@ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
 import yesman.epicfight.world.entity.ai.attribute.EpicFightAttributes;
 
 public final class VillagerKingEntity extends PathfinderMob {
+    private static final double MELEE_ATTACK_RANGE_SQR = 9.0D;
     private static final double SLAM_MAX_CHASE_SPEED = 1.45D;
     private static final double SLAM_BRAKE_DISTANCE_SQR = 2.25D;
     private static final double SLAM_DIVE_TRIGGER_DISTANCE_SQR = 9.0D;
@@ -136,7 +137,7 @@ public final class VillagerKingEntity extends PathfinderMob {
             beginSlam(target);
             return;
         }
-        if (!onGround() || distanceToSqr(target) > 25.0D) return;
+        if (!onGround() || distanceToSqr(target) > MELEE_ATTACK_RANGE_SQR) return;
 
         getNavigation().stop();
         getLookControl().setLookAt(target, 30.0F, 30.0F);
