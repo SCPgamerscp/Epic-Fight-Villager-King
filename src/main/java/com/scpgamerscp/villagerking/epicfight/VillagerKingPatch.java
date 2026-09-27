@@ -7,17 +7,23 @@ import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.WrappedGoal;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import yesman.epicfight.api.animation.Animator;
 import yesman.epicfight.api.animation.LivingMotions;
 import yesman.epicfight.api.animation.property.AnimationProperty.PlaybackSpeedModifier;
 import yesman.epicfight.api.animation.property.AnimationProperty.StaticAnimationProperty;
+import yesman.epicfight.api.animation.types.AttackAnimation;
 import yesman.epicfight.api.animation.types.StaticAnimation;
 import yesman.epicfight.api.asset.AssetAccessor;
 import yesman.epicfight.gameasset.Animations;
 import yesman.epicfight.world.capabilities.entitypatch.Factions;
 import yesman.epicfight.world.capabilities.entitypatch.HumanoidMobPatch;
+import yesman.epicfight.world.capabilities.item.CapabilityItem;
+import yesman.epicfight.world.entity.ai.attribute.EpicFightAttributes;
 import yesman.epicfight.world.entity.ai.goal.AnimatedAttackGoal;
 
 public final class VillagerKingPatch extends HumanoidMobPatch<VillagerKingEntity> {
@@ -72,6 +78,40 @@ public final class VillagerKingPatch extends HumanoidMobPatch<VillagerKingEntity
 
     public boolean isAnimationIdle() {
         return getServerAnimator().getPlayerFor(null).isEmpty();
+    }
+
+    /**
+     * Match Epic Fight's normal combo timing instead of waiting for the whole
+     * animation clip to return to idle. A new attack is allowed only after the
+     * current AttackAnimation reaches the point where Epic Fight itself exposes
+     * CAN_BASIC_ATTACK. Link transitions and active attack frames cannot be cut.
+     */
+    public boolean canStartNextAttack() {
+        var player = getServerAnimator().getPlayerFor(null);
+        if (player.isEmpty()) return true;
+        if (player.getAnimation().get().isLinkAnimation()) return false;
+        if (!(player.getRealAnimation().get() instanceof AttackAnimation)) return false;
+        return getServerAnimator().getEntityState().canBasicAttack();
+    }
+
+    /**
+     * Epic Fight 20.14.17 accidentally puts the offhand capability's ATTACK_SPEED
+     * modifier onto OFFHAND_ARMOR_NEGATION in HumanoidMobPatch#updateHeldItem.
+     * Its removal path removes that modifier from OFFHAND_ATTACK_SPEED instead,
+     * leaving the wrong modifier behind. The next offhand swap can then throw
+     * "Modifier is already applied on this attribute". Remove only that leaked
+     * modifier before the king changes weapons.
+     */
+    public void prepareOffhandSwap() {
+        CapabilityItem currentOffhand = getHoldingItemCapability(InteractionHand.OFF_HAND);
+        if (currentOffhand.isEmpty()) return;
+
+        var offhandArmorNegation = original.getAttribute(EpicFightAttributes.OFFHAND_ARMOR_NEGATION.get());
+        if (offhandArmorNegation == null) return;
+
+        currentOffhand.getAttributeModifiers(EquipmentSlot.MAINHAND, this)
+                .get(Attributes.ATTACK_SPEED)
+                .forEach(offhandArmorNegation::removeModifier);
     }
 
     /**
