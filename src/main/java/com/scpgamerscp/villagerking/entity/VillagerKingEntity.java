@@ -125,7 +125,7 @@ public final class VillagerKingEntity extends PathfinderMob {
         }
         // The server animator accounts for links, speed modifiers, and spear followups.
         // Start another attack only after the whole animation chain has finished.
-        if (!patch.isAnimationIdle()) return;
+        if (!patch.canStartNextAttack()) return;
         if (eviscerateAwaitingResult) {
             eviscerateAwaitingResult = false;
             if (patch.getCurrentlyActuallyHitEntities().stream().anyMatch(net.minecraft.world.entity.LivingEntity::isAlive)) {
@@ -140,7 +140,7 @@ public final class VillagerKingEntity extends PathfinderMob {
         if (!onGround() || distanceToSqr(target) > MELEE_ATTACK_RANGE_SQR) return;
 
         getNavigation().stop();
-        getLookControl().setLookAt(target, 30.0F, 30.0F);
+        faceTarget(target);
         AssetAccessor<? extends StaticAnimation> animation;
         boolean skillAttack = comboRounds >= 3;
         if (comboRounds < 3) {
@@ -276,6 +276,9 @@ public final class VillagerKingEntity extends PathfinderMob {
     }
 
     private void equipWeapon(KingWeapon next) {
+        VillagerKingPatch patch = EpicFightCapabilities.getEntityPatch(this, VillagerKingPatch.class);
+        if (patch != null) patch.prepareOffhandSwap();
+
         weapon = next;
         dual = (next == KingWeapon.SWORD || next == KingWeapon.DAGGER) && getRandom().nextBoolean();
         setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(next.item()));
@@ -286,6 +289,18 @@ public final class VillagerKingEntity extends PathfinderMob {
         comboRounds = 0;
         skillIndex = 0;
         skillsRemaining = 6;
+    }
+
+    private void faceTarget(net.minecraft.world.entity.LivingEntity target) {
+        Vec3 towardTarget = target.position().subtract(position());
+        double horizontalDistanceSqr = towardTarget.x * towardTarget.x + towardTarget.z * towardTarget.z;
+        if (horizontalDistanceSqr <= 1.0E-8D) return;
+
+        float yaw = (float)(Math.atan2(towardTarget.z, towardTarget.x) * 180.0D / Math.PI) - 90.0F;
+        setYRot(yaw);
+        setYHeadRot(yaw);
+        setYBodyRot(yaw);
+        getLookControl().setLookAt(target, 360.0F, 360.0F);
     }
 
     @Nullable
